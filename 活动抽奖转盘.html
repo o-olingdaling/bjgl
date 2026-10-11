@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6d1220">
+<title>活动抽奖转盘</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%23A81E2F' stroke='%23E8B44A' stroke-width='4'/%3E%3Cpath d='M32 8 L36 24 L50 18 L40 30 L52 36 L36 34 L36 50 L28 38 L14 44 L24 30 L12 24 L28 26 Z' fill='%23E8B44A'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg-0:#3a0a12; --bg-1:#6d1220;
+  --gold:#E8B44A; --gold-2:#F0C86B; --gold-deep:#a87b2a;
+  --gold-dim:rgba(232,180,74,.35);
+  --ink:#FFF6E5; --ink-dim:rgba(255,246,229,.72);
+  --maroon:#4a0d14;
+  --panel:rgba(255,246,229,.05);
+  --danger:#ff9b8a;
+  --radius:14px;
+  --serif:'Noto Serif SC','Songti SC','STSong',serif;
+  --sans:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  min-height:100vh;
+  color:var(--ink);
+  font-family:var(--sans);
+  background:radial-gradient(130% 130% at 50% -10%, var(--bg-1), var(--bg-0) 70%);
+  overflow-x:hidden;
+}
+.grain{
+  position:fixed; inset:0; z-index:1; pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  opacity:.05; mix-blend-mode:overlay;
+}
+.cover{
+  position:fixed; inset:0; z-index:70;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center; padding:30px; gap:10px;
+  background:
+    radial-gradient(70% 60% at 50% 36%, rgba(232,180,74,.16), transparent 62%),
+    radial-gradient(130% 130% at 50% -10%, var(--bg-1), var(--bg-0) 72%);
+  transition:opacity .55s ease;
+}
+.cover.fade-out{opacity:0; pointer-events:none}
+.cover[hidden]{display:none}
+.cover-star{width:60px; height:60px; margin-bottom:6px; filter:drop-shadow(0 6px 20px rgba(232,180,74,.35))}
+.cover-kicker{margin:0; font-size:15px; letter-spacing:.55em; color:var(--gold); padding-left:.55em}
+.cover-title{
+  margin:0; font-family:var(--serif); font-weight:900;
+  font-size:clamp(50px, 9vw, 92px); line-height:1.15; letter-spacing:.12em;
+  background:linear-gradient(180deg, var(--gold-2), var(--gold) 55%, #B98A26);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  filter:drop-shadow(0 6px 26px rgba(232,180,74,.25));
+}
+.cover-rule{display:flex; align-items:center; gap:12px; width:min(320px, 60vw); margin:8px 0}
+.cover-rule::before,.cover-rule::after{content:''; flex:1; height:1px; background:linear-gradient(90deg, transparent, var(--gold-dim))}
+.cover-rule::after{background:linear-gradient(270deg, transparent, var(--gold-dim))}
+.cover-sub{margin:0; font-size:17px; letter-spacing:.28em; color:var(--ink-dim); padding-left:.28em}
+.cover-btn{margin-top:30px; padding:18px 58px; font-size:20px}
+.topbar{
+  position:relative; z-index:2;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 26px 10px;
+  max-width:1320px; margin:0 auto;
+}
+.brand{display:flex; align-items:center; gap:12px; min-width:0}
+.brand svg{flex:none; width:34px; height:34px}
+.brand-title{
+  margin:0; font-family:var(--serif); font-weight:900; font-size:26px;
+  letter-spacing:.08em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  background:linear-gradient(180deg, var(--gold-2), var(--gold));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.mute-btn{
+  display:flex; align-items:center; gap:8px;
+  background:rgba(0,0,0,.28); border:1px solid var(--gold-dim); border-radius:999px;
+  color:var(--ink); font-family:var(--sans); font-size:14px;
+  min-height:44px; padding:10px 18px; cursor:pointer; transition:background .15s;
+}
+.mute-btn:hover{background:rgba(0,0,0,.42)}
+.mute-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+.layout{
+  position:relative; z-index:2;
+  max-width:860px; margin:0 auto; padding:6px 26px 60px;
+  display:flex; flex-direction:column; align-items:center; gap:24px;
+}
+.wheel-panel{width:100%; display:flex; flex-direction:column; align-items:center; gap:18px; padding-top:8px}
+.wheel-wrap{width:100%; max-width:660px; aspect-ratio:1/1; display:grid; place-items:center}
+.wheel-wrap canvas{display:block}
+.wheel-actions{display:flex; gap:14px; flex-wrap:wrap; justify-content:center}
+.btn-primary{
+  font-family:var(--sans); font-weight:700; font-size:19px; letter-spacing:.1em;
+  color:var(--maroon); background:linear-gradient(180deg, var(--gold-2), var(--gold));
+  border:none; border-radius:999px; padding:16px 44px; cursor:pointer;
+  box-shadow:0 6px 0 var(--gold-deep), 0 14px 28px rgba(0,0,0,.35);
+  transition:transform .12s, box-shadow .12s;
+}
+.btn-primary:active{transform:translateY(4px); box-shadow:0 2px 0 var(--gold-deep), 0 8px 18px rgba(0,0,0,.3)}
+.btn-primary:disabled{opacity:.45; cursor:not-allowed; transform:none}
+.btn-primary:focus-visible{outline:2px solid var(--ink); outline-offset:3px}
+.btn-ghost{
+  font-family:var(--sans); font-size:15px; color:var(--ink);
+  background:transparent; border:1px solid var(--gold-dim); border-radius:999px;
+  padding:13px 26px; cursor:pointer; transition:background .15s;
+}
+.btn-ghost:hover{background:var(--gold-dim)}
+.btn-ghost:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+.btn-ghost.small{padding:11px 18px; font-size:14px; min-height:44px; display:inline-flex; align-items:center; justify-content:center}
+.wheel-status{margin:0; color:var(--ink-dim); font-size:14px; letter-spacing:.05em}
+.control-panel{width:100%; max-width:660px; display:flex; flex-direction:column; gap:16px}
+.card{
+  background:var(--panel); border:1px solid var(--gold-dim); border-radius:var(--radius);
+  padding:18px 20px;
+}
+.card h2{
+  margin:0 0 14px; padding-bottom:10px;
+  font-family:var(--serif); font-weight:700; font-size:18px; color:var(--gold);
+  border-bottom:1px solid var(--gold-dim); letter-spacing:.06em;
+}
+.field{margin-bottom:12px}
+.field label{display:block; font-size:13px; color:var(--ink-dim); margin-bottom:6px; letter-spacing:.04em}
+.field input{
+  width:100%; background:rgba(0,0,0,.25); border:1px solid var(--gold-dim);
+  border-radius:8px; padding:9px 12px; color:var(--ink); font-family:var(--sans); font-size:16px;
+}
+.field input:focus{outline:none; border-color:var(--gold)}
+.prize-list{list-style:none; margin:0 0 12px; padding:0; max-height:262px; overflow:auto}
+.prize-row{
+  display:grid; grid-template-columns:36px 30px 1fr 44px 44px 44px; gap:8px; align-items:center;
+  padding:7px 0; border-bottom:1px dashed rgba(232,180,74,.16);
+}
+.prize-row input[type=color]{
+  width:30px; height:30px; padding:0; border:1px solid var(--gold-dim); border-radius:6px;
+  background:none; cursor:pointer;
+}
+.prize-row .p-name{
+  background:rgba(0,0,0,.2); border:1px solid transparent; border-radius:6px;
+  padding:7px 9px; color:var(--ink); font-family:var(--sans); font-size:16px; width:100%;
+}
+.prize-row .p-name:focus{outline:none; border-color:var(--gold-dim)}
+.del-btn{
+  display:grid; place-items:center; width:44px; height:44px;
+  background:transparent; border:1px solid transparent; border-radius:8px;
+  color:var(--ink-dim); cursor:pointer; transition:color .15s, border-color .15s;
+}
+.del-btn:hover{color:var(--danger); border-color:rgba(255,155,138,.4)}
+.del-btn:focus-visible{outline:2px solid var(--gold); outline-offset:1px}
+.drag-handle{
+  display:grid; place-items:center; cursor:grab; color:var(--ink-dim);
+  min-height:44px; touch-action:none;
+}
+.drag-handle:active{cursor:grabbing}
+.drag-handle svg{display:block}
+.move-btn{
+  display:grid; place-items:center; width:44px; height:44px;
+  background:transparent; border:1px solid transparent; border-radius:8px;
+  color:var(--ink-dim); cursor:pointer; transition:color .15s, border-color .15s;
+}
+.move-btn:hover{color:var(--gold-2); border-color:var(--gold-dim)}
+.move-btn:disabled{opacity:.3; cursor:not-allowed}
+.move-btn:focus-visible{outline:2px solid var(--gold); outline-offset:1px}
+.prize-row.dragging{opacity:.45}
+.prize-row.drop-before{box-shadow:inset 0 3px 0 var(--gold)}
+.prize-row.drop-after{box-shadow:inset 0 -3px 0 var(--gold)}
+@media (max-width:640px){
+  .drag-handle{display:none}
+  .prize-row{grid-template-columns:30px 1fr 44px 44px 44px}
+}
+.prize-add{display:flex; gap:8px}
+.prize-add input{
+  flex:1; min-width:0; background:rgba(0,0,0,.25); border:1px solid var(--gold-dim);
+  border-radius:8px; padding:9px 12px; color:var(--ink); font-family:var(--sans); font-size:16px;
+}
+.prize-add input:focus{outline:none; border-color:var(--gold)}
+.prize-add .btn-ghost{padding:9px 18px}
+.hint{margin:10px 0 0; font-size:14px; color:var(--ink-dim); opacity:.85}
+.music-row{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media (max-width:460px){ .music-row{grid-template-columns:1fr} }
+.music-slot{background:rgba(0,0,0,.22); border:1px solid var(--gold-dim); border-radius:10px; padding:12px}
+.music-slot label{display:block; font-size:13px; color:var(--ink-dim); margin-bottom:8px; letter-spacing:.03em}
+.upload-btn{
+  display:block; width:100%; text-align:center;
+  background:transparent; border:1px dashed var(--gold-dim); border-radius:8px;
+  color:var(--ink); font-family:var(--sans); font-size:14px; min-height:44px; padding:12px 8px; cursor:pointer;
+  transition:background .15s;
+}
+.upload-btn:hover{background:var(--gold-dim)}
+.upload-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+.file-name{display:block; margin-top:8px; font-size:14px; color:var(--ink-dim); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.music-controls{display:flex; align-items:center; gap:12px; margin-top:14px}
+.music-controls input[type=range]{flex:1; accent-color:var(--gold); cursor:pointer; min-width:0}
+#volumeLabel{font-size:14px; color:var(--ink-dim); width:38px; text-align:right; font-variant-numeric:tabular-nums}
+.record-list{list-style:none; margin:0; padding:0; max-height:224px; overflow:auto}
+.record-item{
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:8px 2px; border-bottom:1px dashed rgba(232,180,74,.16);
+}
+.record-item .r-name{font-size:14px; color:var(--gold-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.record-item .r-time{font-size:13px; color:var(--ink-dim); font-variant-numeric:tabular-nums; flex:none}
+.record-empty{padding:10px 2px; font-size:14px; color:var(--ink-dim); opacity:.8}
+.record-actions{display:flex; justify-content:space-between; align-items:center; margin-top:12px}
+.record-actions .count{font-size:13px; color:var(--ink-dim)}
+.modal{
+  position:fixed; inset:0; z-index:60;
+  background:rgba(20,2,6,.74); display:grid; place-items:center; padding:24px;
+}
+.modal[hidden]{display:none}
+.modal-card{
+  background:linear-gradient(180deg, #7c1420, #4a0d14);
+  border:2px solid var(--gold); border-radius:20px; text-align:center;
+  padding:36px 52px; box-shadow:0 24px 60px rgba(0,0,0,.5);
+  animation:pop .35s cubic-bezier(.22,1,.36,1);
+}
+@keyframes pop{from{transform:scale(.82); opacity:0} to{transform:scale(1); opacity:1}}
+.modal-kicker{margin:0; font-size:14px; letter-spacing:.35em; color:var(--gold)}
+.modal-prize{margin:14px 0 24px; font-family:var(--serif); font-weight:900; font-size:38px; color:var(--ink); line-height:1.3}
+.confetti{position:fixed; inset:0; z-index:55; pointer-events:none}
+::-webkit-scrollbar{width:8px; height:8px}
+::-webkit-scrollbar-thumb{background:rgba(232,180,74,.3); border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+:focus-visible{outline:2px solid var(--gold); outline-offset:2px}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none!important; transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<div class="cover" id="cover">
+  <svg class="cover-star" viewBox="0 0 64 64" aria-hidden="true"><path d="M32 4 L37 21 L54 14 L45 30 L61 32 L45 34 L54 50 L37 43 L32 60 L27 43 L10 50 L19 34 L3 32 L19 30 L10 14 L27 21 Z" fill="#E8B44A"/></svg>
+  <p class="cover-kicker">欢 迎 莅 临</p>
+  <h1 class="cover-title">颁奖典礼</h1>
+  <div class="cover-rule"></div>
+  <p class="cover-sub" id="coverSub">幸运大抽奖</p>
+  <button class="btn-primary cover-btn" id="coverBtn">进入会场</button>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" fill="#A81E2F" stroke="#E8B44A" stroke-width="4"/><path d="M32 8 L36 24 L50 18 L40 30 L52 36 L36 34 L36 50 L28 38 L14 44 L24 30 L12 24 L28 26 Z" fill="#E8B44A"/></svg>
+    <h1 class="brand-title" id="appTitle">幸运大抽奖</h1>
+  </div>
+  <button class="mute-btn" id="muteBtn" role="switch" aria-checked="false">
+    <svg id="muteIconOn" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+    <svg id="muteIconOff" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" hidden><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M16 9l5 6M21 9l-5 6"/></svg>
+    <span id="muteLabel">音乐开</span>
+  </button>
+</header>
+
+<main class="layout">
+  <section class="wheel-panel">
+    <div class="wheel-wrap"><canvas id="wheelCanvas" aria-label="抽奖转盘"></canvas></div>
+    <div class="wheel-actions">
+      <button class="btn-primary" id="drawBtn">开始抽奖</button>
+      <button class="btn-ghost" id="resetBtn">重置转盘</button>
+    </div>
+    <p class="wheel-status" id="wheelStatus"></p>
+  </section>
+
+  <aside class="control-panel">
+    <section class="card">
+      <h2>奖品设置</h2>
+      <div class="field">
+        <label for="titleInput">活动标题</label>
+        <input id="titleInput" maxlength="20" value="幸运大抽奖">
+      </div>
+      <ul class="prize-list" id="prizeList"></ul>
+      <div class="prize-add">
+        <input id="newPrizeInput" placeholder="输入新奖品名称" maxlength="10">
+        <button class="btn-ghost small" id="addPrizeBtn">添加</button>
+      </div>
+      <p class="hint">最多 12 个奖品 · 每个奖品只中一次 · 拖动把手或点箭头调整顺序</p>
+    </section>
+
+    <section class="card">
+      <h2>背景音乐</h2>
+      <div class="music-row">
+        <div class="music-slot">
+          <label>抽奖前 · 暖场音乐</label>
+          <button class="upload-btn" id="ambientPick">选择音频文件</button>
+          <span class="file-name" id="ambientName">未选择（转动时会有提示音）</span>
+        </div>
+        <div class="music-slot">
+          <label>揭晓时 · 庆祝音乐</label>
+          <button class="upload-btn" id="revealPick">选择音频文件</button>
+          <span class="file-name" id="revealName">未选择（用内置提示音代替）</span>
+        </div>
+      </div>
+      <div class="music-controls">
+        <button class="btn-ghost small" id="playBtn">播放暖场音乐</button>
+        <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="0.6" aria-label="音量">
+        <span id="volumeLabel">60%</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>中奖记录</h2>
+      <ul class="record-list" id="recordList"></ul>
+      <div class="record-actions">
+        <button class="btn-ghost small" id="clearRecordBtn">清空记录</button>
+        <span class="count" id="recordCount"></span>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<div class="modal" id="resultModal" hidden>
+  <div class="modal-card" role="alertdialog" aria-labelledby="resultPrizeName">
+    <p class="modal-kicker">恭 喜 中 奖</p>
+    <p class="modal-prize" id="resultPrizeName"></p>
+    <button class="btn-primary" id="resultCloseBtn">收下奖品</button>
+  </div>
+</div>
+
+<canvas class="confetti" id="confettiCanvas"></canvas>
+
+<input type="file" id="ambientFile" accept="audio/*" hidden>
+<input type="file" id="revealFile" accept="audio/*" hidden>
+<audio id="ambientAudio" loop preload="metadata"></audio>
+<audio id="revealAudio" preload="metadata"></audio>
+
+<script>
+"use strict";
+// ===== 常量与状态 =====
+const DEFAULT_COLORS = ['#A81E2F','#E8B44A','#C4551B','#7C1420','#D97B29','#8A1538','#B23A2F','#E2A62E','#9C2A1F','#C86B1E','#6E1420','#D8A24A'];
+const MAX_PRIZES = 12;
+const STORE_KEY = 'lottery-wheel-v1';
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+let prizes = [];
+let wonIds = new Set();
+let records = [];
+let title = '幸运大抽奖';
+let volume = 0.6;
+let muted = false;
+let rotation = 0;
+let spinning = false;
+let isPlaying = false;
+let audioCtx = null;
+
+const FONT_SANS = '"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif';
+const FONT_SERIF = '"Noto Serif SC","Songti SC",serif';
+
+// ===== DOM 引用 =====
+const $ = id => document.getElementById(id);
+const appTitle = $('appTitle'), muteBtn = $('muteBtn'), muteIconOn = $('muteIconOn'), muteIconOff = $('muteIconOff'), muteLabel = $('muteLabel');
+const wheelCanvas = $('wheelCanvas'), ctx = wheelCanvas.getContext('2d');
+const drawBtn = $('drawBtn'), resetBtn = $('resetBtn'), wheelStatus = $('wheelStatus');
+const titleInput = $('titleInput'), prizeList = $('prizeList'), newPrizeInput = $('newPrizeInput'), addPrizeBtn = $('addPrizeBtn');
+const ambientPick = $('ambientPick'), ambientName = $('ambientName'), revealPick = $('revealPick'), revealName = $('revealName');
+const playBtn = $('playBtn'), volumeSlider = $('volumeSlider'), volumeLabel = $('volumeLabel');
+const recordList = $('recordList'), clearRecordBtn = $('clearRecordBtn'), recordCount = $('recordCount');
+const resultModal = $('resultModal'), resultPrizeName = $('resultPrizeName'), resultCloseBtn = $('resultCloseBtn');
+const confettiCanvas = $('confettiCanvas'), cctx = confettiCanvas.getContext('2d');
+const ambientFile = $('ambientFile'), revealFile = $('revealFile');
+const ambientAudio = $('ambientAudio'), revealAudio = $('revealAudio');
+const cover = $('cover'), coverBtn = $('coverBtn'), coverSub = $('coverSub');
+let hasAmbient = false, hasReveal = false;
+
+// ===== 本地存储 =====
+function save(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({ prizes, wonIds: [...wonIds], records, title, volume, muted })); }catch(e){}
+}
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const d = JSON.parse(raw);
+      if(Array.isArray(d.prizes) && d.prizes.length) prizes = d.prizes;
+      wonIds = new Set(d.wonIds || []);
+      records = Array.isArray(d.records) ? d.records : [];
+      title = d.title || '幸运大抽奖';
+      volume = (typeof d.volume === 'number') ? d.volume : 0.6;
+      muted = !!d.muted;
+    }
+  }catch(e){}
+  if(prizes.length === 0){
+    const names = ['特等奖','一等奖','二等奖','三等奖','四等奖','五等奖','幸运奖','参与奖'];
+    prizes = names.map((n, i) => ({ id: 'd' + i, name: n, color: DEFAULT_COLORS[i] }));
+  }
+  const valid = new Set(prizes.map(p => p.id));
+  wonIds = new Set([...wonIds].filter(id => valid.has(id)));
+}
+
+// ===== 转盘绘制 =====
+let wheelSize = 0;
+function remainingPrizes(){ return prizes.filter(p => !wonIds.has(p.id)); }
+function hexToRgb(hex){ const h = hex.replace('#',''); return [parseInt(h.slice(0,2),16), parseInt(h.slice(2,4),16), parseInt(h.slice(4,6),16)]; }
+function textColorFor(hex){ const [r,g,b] = hexToRgb(hex); return (0.299*r + 0.587*g + 0.114*b) > 150 ? '#5C0F1A' : '#FFF6E5'; }
+function tint(hex, f){ const [r,g,b] = hexToRgb(hex); const m = v => Math.round(v + (255-v)*f); return `rgb(${m(r)},${m(g)},${m(b)})`; }
+function truncate(name, n=6){ const arr = [...name]; return arr.length > n ? arr.slice(0, n-1).join('') + '…' : name; }
+
+function resizeWheel(){
+  const wrap = wheelCanvas.parentElement;
+  const w = wrap.clientWidth || 400;
+  wheelSize = Math.min(w, 640);
+  const dpr = window.devicePixelRatio || 1;
+  wheelCanvas.style.width = wheelSize + 'px';
+  wheelCanvas.style.height = wheelSize + 'px';
+  wheelCanvas.width = Math.round(wheelSize * dpr);
+  wheelCanvas.height = Math.round(wheelSize * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawWheel();
+}
+
+function drawWheel(highlightIdx = -1, sectorList = null){
+  if(!wheelSize) return;
+  const list = sectorList || remainingPrizes();
+  const N = list.length;
+  const c = wheelSize / 2, R = c - 6;
+  ctx.clearRect(0, 0, wheelSize, wheelSize);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(c, c, R, 0, 2 * Math.PI);
+  const rim = ctx.createLinearGradient(c - R, 0, c + R, 0);
+  rim.addColorStop(0, '#C9982F'); rim.addColorStop(0.5, '#F0C86B'); rim.addColorStop(1, '#B98A26');
+  ctx.strokeStyle = rim; ctx.lineWidth = 7;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.translate(c, c);
+  ctx.rotate(rotation);
+  if(N > 0){
+    const s = 2 * Math.PI / N;
+    list.forEach((p, i) => {
+      const a0 = i * s, a1 = a0 + s;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.arc(0, 0, R - 4, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = highlightIdx === i ? tint(p.color, 0.32) : p.color;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(58,10,18,.55)';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      drawSectorText(p.name, a0 + s / 2, N, p.color);
+    });
+    if(highlightIdx >= 0){
+      const s = 2 * Math.PI / N;
+      const mid = highlightIdx * s + s / 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, R - 9, mid - s / 2, mid + s / 2);
+      ctx.strokeStyle = '#FFF6E5';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = 'rgba(255,246,229,.55)';
+    ctx.font = '600 ' + Math.max(15, R * 0.06) + 'px ' + FONT_SANS;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('奖品已抽完', 0, R * 0.12);
+  }
+  ctx.restore();
+
+  drawPointer(c, R);
+  drawHub(c, R);
+}
+
+function drawSectorText(name, mid, N, color){
+  const R = wheelSize / 2 - 4;
+  const label = truncate(name);
+  const L = [...label].length;
+  const s = 2 * Math.PI / N;
+  const fontSize = Math.max(11, Math.min(24, R * 0.11, (R * 0.62 * s * 0.78) / Math.max(L, 1)));
+  ctx.save();
+  ctx.rotate(mid);
+  ctx.font = '700 ' + Math.round(fontSize) + 'px ' + FONT_SANS;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = textColorFor(color);
+  const r0 = R * 0.66;
+  const norm = ((mid % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  if(norm > Math.PI / 2 && norm < Math.PI * 1.5){
+    ctx.rotate(Math.PI);
+    ctx.fillText(label, -r0, 0);
+  } else {
+    ctx.fillText(label, r0, 0);
+  }
+  ctx.restore();
+}
+
+function drawPointer(c, R){
+  ctx.save();
+  ctx.translate(c, c);
+  const tipY = -R + 6;
+  ctx.beginPath();
+  ctx.moveTo(0, tipY + 10);
+  ctx.lineTo(-15, tipY - 12);
+  ctx.lineTo(15, tipY - 12);
+  ctx.closePath();
+  ctx.fillStyle = '#F0C86B';
+  ctx.fill();
+  ctx.strokeStyle = '#7a5a12';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawHub(c, R){
+  ctx.save();
+  ctx.translate(c, c);
+  const hr = Math.max(18, R * 0.13);
+  const g = ctx.createRadialGradient(0, -hr * 0.3, hr * 0.2, 0, 0, hr);
+  g.addColorStop(0, '#F7D98A'); g.addColorStop(1, '#C9982F');
+  ctx.beginPath(); ctx.arc(0, 0, hr, 0, 2 * Math.PI);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = '#7a5a12'; ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.fillStyle = '#4a0d14';
+  ctx.font = '900 ' + Math.round(hr * 0.62) + 'px ' + FONT_SERIF;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('抽', 0, 1);
+  ctx.restore();
+}
+
+// ===== 抽奖逻辑 =====
+function spin(){
+  if(spinning) return;
+  const list = remainingPrizes();
+  if(list.length === 0) return;
+  ensureCtx();
+  const N = list.length, s = 2 * Math.PI / N;
+  const winIdx = Math.floor(Math.random() * N);
+  let target = -Math.PI / 2 - (winIdx * s + s / 2);
+  while(target < rotation + 4 * 2 * Math.PI) target += 2 * Math.PI;
+  if(Math.random() < 0.5) target += 2 * Math.PI;
+  spinning = true;
+  setDrawBtn();
+  if(reducedMotion){
+    rotation = target;
+    drawWheel();
+    onSpinEnd(winIdx, list);
+    return;
+  }
+  const start = rotation, dur = 4200, t0 = performance.now();
+  let lastTick = Math.floor((rotation - start) / s);
+  function frame(now){
+    const t = Math.min(1, (now - t0) / dur);
+    const e = 1 - Math.pow(1 - t, 4);
+    rotation = start + (target - start) * e;
+    const tickN = Math.floor((rotation - start) / s);
+    if(tickN > lastTick){ lastTick = tickN; tick(); }
+    drawWheel();
+    if(t < 1){ requestAnimationFrame(frame); }
+    else { onSpinEnd(winIdx, list); }
+  }
+  requestAnimationFrame(frame);
+}
+
+function onSpinEnd(winIdx, list){
+  spinning = false;
+  const prize = list[winIdx];
+  drawWheel(winIdx, list);
+  wonIds.add(prize.id);
+  records.unshift({ name: prize.name, time: nowStr() });
+  save(); renderRecords(); updateStatus(); setDrawBtn();
+  ambientAudio.pause();
+  isPlaying = false; updatePlayBtn();
+  if(hasReveal){
+    revealAudio.currentTime = 0;
+    revealAudio.play().catch(() => {});
+  } else {
+    ding();
+  }
+  burstConfetti();
+  resultPrizeName.textContent = prize.name;
+  resultModal.hidden = false;
+  resultCloseBtn.focus();
+  setTimeout(() => drawWheel(), 1900);
+}
+
+function nowStr(){ return new Date().toLocaleTimeString('zh-CN', { hour12: false }); }
+
+// ===== 音效合成 =====
+function ensureCtx(){
+  if(!audioCtx){ try{ audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ audioCtx = null; } }
+  if(audioCtx && audioCtx.state === 'suspended'){ audioCtx.resume(); }
+}
+function tick(){
+  if(muted || !audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = 'square'; o.frequency.value = 700;
+  g.gain.setValueAtTime(0.035, audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.03);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + 0.032);
+}
+function ding(){
+  if(muted || !audioCtx) return;
+  [523.25, 659.25, 783.99].forEach((f, i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    const t = audioCtx.currentTime + i * 0.12;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.14, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.55);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.6);
+  });
+}
+
+// ===== 音乐控制 =====
+function setMasterVolume(){
+  const v = muted ? 0 : volume;
+  ambientAudio.volume = v;
+  revealAudio.volume = v;
+}
+function updatePlayBtn(){ playBtn.textContent = isPlaying ? '暂停音乐' : '播放暖场音乐'; }
+function updateMute(){
+  muteBtn.setAttribute('aria-checked', muted ? 'true' : 'false');
+  muteIconOn.hidden = muted;
+  muteIconOff.hidden = !muted;
+  muteLabel.textContent = muted ? '已静音' : '音乐开';
+  setMasterVolume();
+}
+function bindUpload(fileInput, audioEl, nameEl, kind){
+  fileInput.addEventListener('change', () => {
+    const f = fileInput.files[0];
+    if(!f) return;
+    if(audioEl.src && audioEl.src.startsWith('blob:')) URL.revokeObjectURL(audioEl.src);
+    audioEl.src = URL.createObjectURL(f);
+    nameEl.textContent = f.name;
+    nameEl.title = f.name;
+    if(kind === 'ambient'){
+      hasAmbient = true;
+      if(isPlaying) audioEl.play().catch(() => {});
+    } else {
+      hasReveal = true;
+      audioEl.pause();
+    }
+  });
+}
+
+// ===== 奖品管理 =====
+let draggedIdx = -1;
+function renderPrizeList(){
+  prizeList.innerHTML = '';
+  prizes.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = 'prize-row';
+    li.dataset.idx = i;
+
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.title = '拖动调整顺序';
+    handle.draggable = true;
+    handle.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.7"/><circle cx="15" cy="6" r="1.7"/><circle cx="9" cy="12" r="1.7"/><circle cx="15" cy="12" r="1.7"/><circle cx="9" cy="18" r="1.7"/><circle cx="15" cy="18" r="1.7"/></svg>';
+    handle.addEventListener('dragstart', e => {
+      if(spinning){ e.preventDefault(); return; }
+      draggedIdx = i;
+      e.dataTransfer.effectAllowed = 'move';
+      requestAnimationFrame(() => li.classList.add('dragging'));
+    });
+    handle.addEventListener('dragend', () => {
+      draggedIdx = -1;
+      li.classList.remove('dragging');
+      [...prizeList.children].forEach(el => el.classList.remove('drop-before', 'drop-after'));
+    });
+
+    const cIn = document.createElement('input');
+    cIn.type = 'color'; cIn.value = p.color; cIn.title = '扇区颜色';
+    cIn.addEventListener('input', () => { p.color = cIn.value; save(); drawWheel(); });
+
+    const nIn = document.createElement('input');
+    nIn.className = 'p-name'; nIn.value = p.name; nIn.maxLength = 10;
+    nIn.addEventListener('change', () => {
+      const v = nIn.value.trim();
+      if(v){ p.name = v; } else { nIn.value = p.name; }
+      save(); drawWheel();
+    });
+
+    const up = document.createElement('button');
+    up.className = 'move-btn'; up.title = '上移'; up.disabled = i === 0;
+    up.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+    up.addEventListener('click', () => movePrize(i, i - 1));
+
+    const down = document.createElement('button');
+    down.className = 'move-btn'; down.title = '下移'; down.disabled = i === prizes.length - 1;
+    down.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>';
+    down.addEventListener('click', () => movePrize(i, i + 1));
+
+    const del = document.createElement('button');
+    del.className = 'del-btn'; del.title = '删除该奖品';
+    del.innerHTML = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+    del.addEventListener('click', () => {
+      if(prizes.length <= 2){ toast('至少保留 2 个奖品'); return; }
+      prizes.splice(i, 1);
+      wonIds.delete(p.id);
+      save(); renderPrizeList(); drawWheel(); updateStatus(); setDrawBtn();
+    });
+
+    li.addEventListener('dragover', e => {
+      if(draggedIdx < 0) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const t = +li.dataset.idx;
+      [...prizeList.children].forEach(el => el.classList.remove('drop-before', 'drop-after'));
+      if(t !== draggedIdx) li.classList.add(t > draggedIdx ? 'drop-after' : 'drop-before');
+    });
+    li.addEventListener('drop', e => {
+      e.preventDefault();
+      if(draggedIdx < 0) return;
+      reorderPrize(draggedIdx, +li.dataset.idx);
+      draggedIdx = -1;
+    });
+
+    li.append(handle, cIn, nIn, up, down, del);
+    prizeList.appendChild(li);
+  });
+  addPrizeBtn.disabled = prizes.length >= MAX_PRIZES;
+  addPrizeBtn.textContent = prizes.length >= MAX_PRIZES ? '已达上限' : '添加';
+}
+function movePrize(from, to){
+  if(spinning || from === to || to < 0 || to >= prizes.length) return;
+  reorderPrize(from, to);
+}
+function reorderPrize(from, to){
+  const [moved] = prizes.splice(from, 1);
+  prizes.splice(to, 0, moved);
+  save(); renderPrizeList(); drawWheel();
+}
+function addPrize(){
+  const v = newPrizeInput.value.trim();
+  if(!v){ newPrizeInput.focus(); return; }
+  if(prizes.length >= MAX_PRIZES){ toast('最多 12 个奖品'); return; }
+  prizes.push({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: v, color: DEFAULT_COLORS[prizes.length % DEFAULT_COLORS.length] });
+  newPrizeInput.value = '';
+  save(); renderPrizeList(); drawWheel(); updateStatus(); setDrawBtn();
+}
+
+// ===== 中奖记录 =====
+function renderRecords(){
+  recordList.innerHTML = '';
+  if(records.length === 0){
+    const li = document.createElement('li');
+    li.className = 'record-empty';
+    li.textContent = '还没有中奖记录';
+    recordList.appendChild(li);
+  } else {
+    records.slice(0, 60).forEach(r => {
+      const li = document.createElement('li');
+      li.className = 'record-item';
+      const n = document.createElement('span'); n.className = 'r-name'; n.textContent = r.name;
+      const t = document.createElement('span'); t.className = 'r-time'; t.textContent = r.time;
+      li.append(n, t);
+      recordList.appendChild(li);
+    });
+  }
+  recordCount.textContent = records.length ? '共 ' + records.length + ' 条' : '';
+}
+
+// ===== 状态与按钮 =====
+function updateStatus(){
+  const remaining = remainingPrizes().length;
+  const total = prizes.length;
+  wheelStatus.textContent = remaining === 0
+    ? '奖品已全部抽完，点击「重置转盘」重新开始'
+    : '剩余 ' + remaining + ' 个奖品 · 已中 ' + (total - remaining) + ' 个';
+}
+function setDrawBtn(){
+  const remaining = remainingPrizes().length;
+  drawBtn.disabled = remaining === 0 || spinning;
+  drawBtn.textContent = remaining === 0 ? '已抽完' : (spinning ? '抽奖中…' : '开始抽奖');
+}
+
+// ===== 彩带庆祝 =====
+let confettiRAF = null;
+function burstConfetti(){
+  if(reducedMotion) return;
+  confettiCanvas.width = window.innerWidth;
+  confettiCanvas.height = window.innerHeight;
+  const colors = ['#E8B44A','#F0C86B','#FFF6E5','#C4551B','#A81E2F','#D97B29'];
+  const cx = window.innerWidth / 2, cy = window.innerHeight * 0.32;
+  const parts = [];
+  for(let i = 0; i < 150; i++){
+    parts.push({
+      x: cx + (Math.random() - 0.5) * 120,
+      y: cy + (Math.random() - 0.5) * 80,
+      vx: (Math.random() - 0.5) * 8,
+      vy: -Math.random() * 9 - 2,
+      size: 5 + Math.random() * 7,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * Math.PI * 2,
+      vr: (Math.random() - 0.5) * 0.3,
+      life: 1,
+      rect: Math.random() < 0.5
+    });
+  }
+  if(confettiRAF) cancelAnimationFrame(confettiRAF);
+  const t0 = performance.now();
+  function step(now){
+    const elapsed = now - t0;
+    cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+    let alive = false;
+    parts.forEach(p => {
+      p.vy += 0.16; p.vx *= 0.985; p.vy *= 0.985;
+      p.x += p.vx; p.y += p.vy; p.rot += p.vr;
+      p.life = Math.max(0, 1 - elapsed / 4200);
+      if(p.life <= 0 || p.y > confettiCanvas.height + 30) return;
+      alive = true;
+      cctx.save();
+      cctx.translate(p.x, p.y); cctx.rotate(p.rot);
+      cctx.globalAlpha = Math.min(1, p.life * 2);
+      cctx.fillStyle = p.color;
+      if(p.rect){ cctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6); }
+      else { cctx.beginPath(); cctx.arc(0, 0, p.size / 2, 0, Math.PI * 2); cctx.fill(); }
+      cctx.restore();
+    });
+    if(alive && elapsed < 4200){ confettiRAF = requestAnimationFrame(step); }
+    else { cctx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height); confettiRAF = null; }
+  }
+  confettiRAF = requestAnimationFrame(step);
+}
+
+// ===== 弹窗与提示 =====
+let toastTimer = null;
+function toast(msg){
+  let el = $('toastEl');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toastEl';
+    el.style.cssText = 'position:fixed;left:50%;bottom:36px;transform:translateX(-50%);z-index:80;background:rgba(20,2,6,.92);border:1px solid rgba(232,180,74,.5);color:#FFF6E5;font-size:14px;padding:10px 20px;border-radius:999px;opacity:0;transition:opacity .25s;pointer-events:none;';
+    document.body.appendChild(el);
+  }
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2200);
+}
+
+// ===== 事件绑定 =====
+drawBtn.addEventListener('click', spin);
+resetBtn.addEventListener('click', () => {
+  if(spinning) return;
+  wonIds.clear();
+  save(); drawWheel(); updateStatus(); setDrawBtn();
+  toast('转盘已重置，所有奖品恢复');
+});
+titleInput.addEventListener('input', () => {
+  title = titleInput.value.trim() || '幸运大抽奖';
+  appTitle.textContent = title;
+  coverSub.textContent = title;
+  document.title = title + ' · 活动抽奖转盘';
+  save();
+});
+coverBtn.addEventListener('click', () => {
+  ensureCtx();
+  if(reducedMotion){ cover.hidden = true; return; }
+  cover.classList.add('fade-out');
+  setTimeout(() => { cover.hidden = true; }, 560);
+});
+ambientPick.addEventListener('click', () => ambientFile.click());
+revealPick.addEventListener('click', () => revealFile.click());
+playBtn.addEventListener('click', () => {
+  ensureCtx();
+  if(!hasAmbient){ toast('请先选择暖场音乐'); ambientPick.focus(); return; }
+  if(isPlaying){
+    ambientAudio.pause();
+    isPlaying = false;
+  } else {
+    revealAudio.pause();
+    ambientAudio.play().catch(() => {});
+    isPlaying = true;
+  }
+  updatePlayBtn();
+});
+volumeSlider.addEventListener('input', () => {
+  volume = parseFloat(volumeSlider.value);
+  volumeLabel.textContent = Math.round(volume * 100) + '%';
+  setMasterVolume();
+  save();
+});
+muteBtn.addEventListener('click', () => { muted = !muted; updateMute(); save(); });
+addPrizeBtn.addEventListener('click', addPrize);
+newPrizeInput.addEventListener('keydown', e => { if(e.key === 'Enter') addPrize(); });
+clearRecordBtn.addEventListener('click', () => { records = []; save(); renderRecords(); });
+resultCloseBtn.addEventListener('click', () => { resultModal.hidden = true; drawBtn.focus(); });
+resultModal.addEventListener('click', e => { if(e.target === resultModal) resultModal.hidden = true; });
+revealAudio.addEventListener('ended', () => { isPlaying = false; updatePlayBtn(); });
+window.addEventListener('resize', resizeWheel);
+
+// ===== 初始化 =====
+function init(){
+  load();
+  appTitle.textContent = title;
+  titleInput.value = title;
+  coverSub.textContent = title;
+  document.title = title + ' · 活动抽奖转盘';
+  volumeSlider.value = volume;
+  volumeLabel.textContent = Math.round(volume * 100) + '%';
+  rotation = Math.random() * Math.PI * 2;
+  wheelStatus.setAttribute('role', 'status');
+  renderPrizeList();
+  renderRecords();
+  updateStatus();
+  setDrawBtn();
+  updateMute();
+  setMasterVolume();
+  resizeWheel();
+  bindUpload(ambientFile, ambientAudio, ambientName, 'ambient');
+  bindUpload(revealFile, revealAudio, revealName, 'reveal');
+}
+init();
+</script>
+</body>
+</html>
+<!-- （注：内容由AI生成） -->
